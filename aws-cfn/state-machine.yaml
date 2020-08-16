@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: 2010-09-09
+Outputs:
+  StockTradingStateMachineRoleArn:
+    Description: >-
+      IAM Role created for Stock Trading State machine based on the specified
+      SAM Policy Templates
+    Value: !GetAtt 
+      - StockTradingStateMachineRole
+      - Arn
+  StockTradingStateMachineArn:
+    Description: Stock Trading State machine ARN
+    Value: !Ref StockTradingStateMachine
+Description: |
+  sam-setpfunction-app
+  Sample SAM Template for sam-setpfunction-app
+Resources:
+  StockSellerFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: app.lambda_handler
+      Code:
+        S3Bucket: aws-sam-cli-managed-default-samclisourcebucket-19700gt8xm2pp
+        S3Key: state-machine-demo/c0abc00e40b30fa2d1de8ef0eb2f3ddc
+      Role: !GetAtt 
+        - StockSellerFunctionRole
+        - Arn
+      Runtime: python3.7
+      Tags:
+        - Value: SAM
+          Key: 'lambda:createdBy'
+  StockTradingStateMachineHourlyTradingSchedule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      State: DISABLED
+      ScheduleExpression: rate(1 hour)
+      Description: Schedule to run the stock trading state machine every hour
+      Targets:
+        - RoleArn: !GetAtt 
+            - StockTradingStateMachineHourlyTradingScheduleRole
+            - Arn
+          Id: StockTradingStateMachineHourlyTradingScheduleStepFunctionsTarget
+          Arn: !Ref StockTradingStateMachine
+  StockTradingStateMachine:
+    Type: 'AWS::StepFunctions::StateMachine'
+    Properties:
+      DefinitionSubstitutions:
+        StockBuyerFunctionArn: !GetAtt 
+          - StockBuyerFunction
+          - Arn
+        StockSellerFunctionArn: !GetAtt 
+          - StockSellerFunction
+          - Arn
+        StockCheckerFunctionArn: !GetAtt 
+          - StockCheckerFunction
+          - Arn
+        DDBPutItem: !Sub 'arn:${AWS::Partition}:states:::dynamodb:putItem'
+        DDBTable: !Ref TransactionTable
+      RoleArn: !GetAtt 
+        - StockTradingStateMachineRole
+        - Arn
+      DefinitionS3Location:
+        Bucket: aws-sam-cli-managed-default-samclisourcebucket-19700gt8xm2pp
+        Key: state-machine-demo/45bd9a8dff25082b8f6d078abb1b3581
+      Tags:
+        - Value: SAM
+          Key: 'stateMachine:createdBy'
+  StockTradingStateMachineHourlyTradingScheduleRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Policies:
+        - PolicyName: >-
+            StockTradingStateMachineHourlyTradingScheduleRoleStartExecutionPolicy
+          PolicyDocument:
+            Statement:
+              - Action: 'states:StartExecution'
+                Resource: !Ref StockTradingStateMachine
+                Effect: Allow
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+  StockBuyerFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Value: SAM
+          Key: 'lambda:createdBy'
+  StockBuyerFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: app.lambda_handler
+      Code:
+        S3Bucket: aws-sam-cli-managed-default-samclisourcebucket-19700gt8xm2pp
+        S3Key: state-machine-demo/87c8f37240971a5f1d0c377b52c31d5b
+      Role: !GetAtt 
+        - StockBuyerFunctionRole
+        - Arn
+      Runtime: python3.7
+      Tags:
+        - Value: SAM
+          Key: 'lambda:createdBy'
+  StockCheckerFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Value: SAM
+          Key: 'lambda:createdBy'
+  TransactionTable:
+    Type: 'AWS::DynamoDB::Table'
+    DependsOn:
+      - StockCheckerFunctionRole
+    Properties:
+      ProvisionedThroughput:
+        WriteCapacityUnits: 1
+        ReadCapacityUnits: 2
+      AttributeDefinitions:
+        - AttributeName: Id
+          AttributeType: S
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Id
+  StockSellerFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Value: SAM
+          Key: 'lambda:createdBy'
+  StockCheckerFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: app.lambda_handler
+      Code:
+        S3Bucket: aws-sam-cli-managed-default-samclisourcebucket-19700gt8xm2pp
+        S3Key: state-machine-demo/1d13af73a4cd271bd1e8435415b71ba6
+      Role: !GetAtt 
+        - StockCheckerFunctionRole
+        - Arn
+      Runtime: python3.8
+      Tags:
+        - Value: SAM
+          Key: 'lambda:createdBy'
+  StockTradingStateMachineRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com
+      ManagedPolicyArns: []
+      Policies:
+        - PolicyName: StockTradingStateMachineRolePolicy0
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - 'lambda:InvokeFunction'
+                Resource: !Sub 
+                  - >-
+                    arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${functionName}*
+                  - functionName: !Ref StockCheckerFunction
+                Effect: Allow
+        - PolicyName: StockTradingStateMachineRolePolicy1
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - 'lambda:InvokeFunction'
+                Resource: !Sub 
+                  - >-
+                    arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${functionName}*
+                  - functionName: !Ref StockSellerFunction
+                Effect: Allow
+        - PolicyName: StockTradingStateMachineRolePolicy2
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - 'lambda:InvokeFunction'
+                Resource: !Sub 
+                  - >-
+                    arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${functionName}*
+                  - functionName: !Ref StockBuyerFunction
+                Effect: Allow
+        - PolicyName: StockTradingStateMachineRolePolicy3
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                Resource:
+                  - !Sub 
+                    - >-
+                      arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tableName}
+                    - tableName: !Ref TransactionTable
+                  - !Sub 
+                    - >-
+                      arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tableName}/index/*
+                    - tableName: !Ref TransactionTable
+                Effect: Allow
+      Tags:
+        - Value: SAM
+          Key: 'stateMachine:createdBy'

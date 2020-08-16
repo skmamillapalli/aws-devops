@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+#Parameters:
+#   AmiId:
+#     Type: String
+
+# Resources:
+#    Ec2Instance:
+#      Type: AWS::EC2::Instance
+#      Properties:
+#        ImageId: 
+#        InstanceType: t3.micro
+#        SecurityGroupIds:
+#          - sg-id
+#        UserData: !Base64 |
+#          #!/bin/bash -ex
+#          # put your script here
+#        Tags:
+#          - Key: key
+#            Value: value
+
+Resources:
+  ec2AvialabilityTestVolume:
+     Type: AWS::EC2::Volume
+     Properties:
+       AvailabilityZone: !Join
+         - ''
+         - - !Ref 'AWS::Region'
+           - 'a'
+       Encrypted: false
+       Size: 10
+       VolumeType: gp2
+
+  ec2KmsTestVolume:
+     Type: AWS::EC2::Volume
+     Properties:
+       AvailabilityZone: !Join
+         - ''
+         - - !Ref 'AWS::Region'
+           - 'a'
+       Encrypted: true
+       Size: 10
+       VolumeType: gp2

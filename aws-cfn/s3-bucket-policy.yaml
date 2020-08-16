@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  DataBucketName:
+    Type: String
+    Default: eaddatascientist-databucket
+
+Resources:
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      AccessControl: Private
+      BucketName: !Ref DataBucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+              
+  TransactionTable:
+    Type: 'AWS::DynamoDB::Table'
+    DependsOn: BucketPolicy
+    Properties:
+      ProvisionedThroughput:
+        WriteCapacityUnits: 1
+        ReadCapacityUnits: wer
+      AttributeDefinitions:
+        - AttributeName: Id
+          AttributeType: S
+      KeySchema:
+        - KeyType: HASH
+          AttributeName: Id
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DataBucket
+      PolicyDocument:
+        Version: '2008-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+              - arn:aws:iam::210713201173:role/EADAISCIENTIST
+            Action:
+              - s3:Get*
+              - s3:*Object
+            Resource:
+              - !Sub "${DataBucket.Arn}"
+              - !Sub "${DataBucket.Arn}/*"
