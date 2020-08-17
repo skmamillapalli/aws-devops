@@ -1,0 +1,118 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation AMI Look Up Sample Template: Demonstrates how to
+  dynamically specify an AMI ID. This template provisions an EC2 instance with an
+  AMI ID that is based on the instance''s type and region. **WARNING** This template
+  creates an Amazon EC2 instance. You will be billed for the AWS resources used if
+  you create a stack from this template.'
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+    - t3.micro
+    ConstraintDescription: Must be a valid EC2 instance type.
+  VpcString:
+    Type: String
+    Default: Enterprise1
+Mappings:
+  AWSInstanceType2Arch:
+    t3.micro:
+      Arch: HVM64
+
+Resources:
+  SampleInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: InstanceType
+      ImageId:
+        Fn::GetAtt:
+        - Ec2ConfigInfo
+        - AmiId
+  Ec2ConfigInfo:
+    Type: Custom::Ec2ConfigInfo
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+        - Ec2ConfigInfoFunction
+        - Arn
+      Region:
+        Ref: AWS::Region
+      Architecture:
+        Fn::FindInMap:
+        - AWSInstanceType2Arch
+        - Ref: InstanceType
+        - Arch
+  AMIInfoFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3, json
+          import cfn-response
+          def handler(event, context):
+            print("Request recieved from CFN:\n", json.dumps(event))
+          
+            archToAMINamePattern = {
+              "PV64": "amzn-ami-pv*x86_64-ebs",
+              "HVM64": "amzn-ami-hvm*x86_64-gp2",
+              "HVMG2": "amzn-ami-graphics-hvm*x86_64-ebs*"
+            }
+            if event['RequestType'] == "Delete":
+                send(event, context, cfn-response.SUCCESS, response_data)
+
+            response_status = "FAILED"
+            response_data = {}
+            ec2_client = boto.client('ec2')
+            images = ec2.describe_images()
+            networks = ec2.describe_networks()
+            subnets = ec2.describe_subnets()
+            response_data['AmiId'] = None
+            response_data['VpcId'] = None
+            reponse_data['SubnetId'] = None
+            response_data['SgId'] = None
+            
+      Handler: "index.handler"
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      Runtime: nodejs12.x
+      Timeout: '30'
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - ec2:DescribeImages
+            Resource: "*"
+Outputs:
+  AMIID:
+    Description: The Amazon EC2 instance AMI ID.
+    Value:
+      Fn::GetAtt:
+      - AMIInfo
+      - Id
