@@ -1,0 +1,20 @@
+{
+    "name": "demo-windows-project",
+    "description": "",
+    "source": {
+        "type": "S3",
+        "location": "codebuild-us-east-1-521263076485-input-bucket/windows-build-input-artifact.zip"
+        },
+    "artifacts": {
+        "type": "S3",
+        "location": "codebuild-us-east-1-521263076485-output-bucket",
+        "name": "windows-build-output-artifact.zi",
+        "packaging": "ZIP"
+    },
+    "environment": {
+        "type": "WINDOWS_SERVER_2019_CONTAINER",
+        "image": "aws/codebuild/windows-base:2019-1.0",
+        "computeType": "BUILD_GENERAL1_MEDIUM"
+    },
+    "serviceRole": "arn:aws:iam::521263076485:role/service-role/codebuild-codebuild-demo-project-service-role"
+}
